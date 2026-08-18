@@ -8,6 +8,52 @@
 
 ---
 
+## ⚖️ 合规与许可证声明
+
+**请务必阅读以下内容后再下载任何文件。**
+
+### URL 验证状态
+
+本文档中的下载 URL 分两类：
+
+- ✅ **有代码依据（已验证）**：直接从仓库脚本中读取的 URL/仓库 ID，可靠。
+  包括：Flash3D 模型、DA-V1、RE10K COLMAP、RE10K HF 测试集。
+- ⚠️ **指向官方页面（需自行确认）**：部分权重无代码内嵌下载源，本文档指向
+  **官方 GitHub/HF 仓库主页**，请按官方 README 的指引获取，**不要直接复制
+  推测的 resolve URL**——实际文件路径/版本可能不同。包括：UniDepth、DA-V2、
+  RealESRGAN、VGG16。
+
+### 许可证概览
+
+| 组件 | 许可证 | 商用? | 来源 |
+|---|---|---|---|
+| Flash3D (本项目代码) | 见原仓库 LICENSE | 受限 | [Flash3D 原项目](https://github.com/flash3d-org/flash3d) |
+| Flash3D 预训练权重 | 同上 | 受限 | HF `einsafutdinov/flash3d` |
+| UniDepth | **CC BY-NC 4.0** | ❌ 禁止商用 | [Miyanishi/UniDepth](https://github.com/Miyanishi/UniDepth) |
+| Depth Anything V1 | 见[官方仓库](https://github.com/LiheYoung/Depth-Anything) LICENSE | 受限 | HF `LiheYoung/Depth-Anything` |
+| Depth Anything V2 | 见[官方仓库](https://github.com/DepthAnything/Depth-Anything-V2) LICENSE | 受限 | 官方 GitHub |
+| Real-ESRGAN | BSD 3-Clause | ✅ | [xinntao/Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) |
+| RealEstate10K | 研究用途，视频版权归原创者 | ❌ | [RE10K 官方](https://google.github.io/realestate10k/) |
+| Pexels 视频 | Pexels License (免费商用) | ✅ 内容本身 | [Pexels](https://www.pexels.com/license/) |
+| Mixkit 视频 | Mixkit License | 受限 | [Mixkit](https://mixkit.co/license/) |
+
+### ⚠️ 爬取脚本合规警告
+
+`download_pexels*.py`、`download_mixkit.py` 等脚本使用 `curl_cffi` 的
+`impersonate='chrome'` 来**绕过 Cloudflare 反爬虫机制**。虽然 Pexels/Mixkit
+的**视频内容**本身可免费使用，但**通过绕过反爬手段批量爬取可能违反网站服务条款**。
+
+- 仅建议用于**个人学术研究**，控制请求频率，尊重 `robots.txt`。
+- 商业用途或大规模分发前，请咨询法律意见并优先使用官方 API。
+- 本仓库**不鼓励**也不对爬取行为的合规性承担责任。
+
+### ⚠️ 第三方数据集声明
+
+`Hualingchu/RealEstate10K_test`（HuggingFace）是**非官方第三方上传**的 RE10K
+数据，视频版权归 YouTube 上的原始创作者。仅建议用于学术研究验证。
+
+---
+
 ## 0. 目录速查表
 
 | 本地路径 | 用途 | 大小(参考) | 是否必需 | 来源 |
@@ -57,23 +103,28 @@ Flash3D 支持三种深度先验，按你使用的配置（`model.depth.name`）
 
 ### 2a. UniDepth V1（默认配置 `layered_re10k` / `layered_kitti` / `layered_nyuv2`）
 
-- **目标路径**：`weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin` (~1.32 GB)
-- **来源**：HuggingFace `Miyanishi/UniDepth`，文件 `checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin`
+- **本地目标路径**：`weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin` (~1.32 GB)
+- **许可证**：⚠️ CC BY-NC 4.0（**禁止商用**）
+- **官方仓库**：https://github.com/Miyanishi/UniDepth
+
+> ⚠️ **URL 需自行确认**：代码（`models/encoder/unidepth_encoder.py`）只规定了
+> 本地路径，**没有内嵌下载 URL**。UniDepth 权重的实际分发方式（HF / Google Drive /
+> 官方脚本）请以 https://github.com/Miyanishi/UniDepth 的 README 为准。
+> 下面是参考命令，**文件路径可能需要按官方 README 调整**：
 
 ```bash
-# 方式一：huggingface_hub
+# 参考：从 HuggingFace Miyanishi/UniDepth 下载（路径以官方仓库为准）
 python -c "from huggingface_hub import hf_hub_download; \
   hf_hub_download('Miyanishi/UniDepth', \
   'checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin', \
   local_dir='weights/unidepth-v1-cnvnxtl')"
 
-# 方式二：直接 wget（注意路径映射）
-mkdir -p weights/unidepth-v1-cnvnxtl
-wget -O weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin \
-  https://huggingface.co/Miyanishi/UniDepth/resolve/main/checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin
+# 下载后确保文件位于：
+#   weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin
 ```
 
 **同时需要 UniDepth 源码**（见第 4 节 `third_party/unidepth_offline`）。
+代码会检查 `third_party/unidepth_offline/hubconf.py` 是否存在。
 
 ### 2b. Depth Anything V1（配置 `layered_re10k_depth_anything_v1` / NPU 预训练）
 
@@ -104,15 +155,18 @@ python scripts/download_depth_anything_v1.py --probe-only
 
 ### 2c. Depth Anything V2（配置 `layered_re10k_cpu_debug` / `layered_re10k_depth_anything_v2`）
 
-- **目标路径**：`weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth` (~465 MB)
-- **来源**：GitHub `DepthAnything/Depth-Anything-V2` 仓库的 `metric_depth` 权重
-- **官方下载页**：https://github.com/DepthAnything/Depth-Anything-V2#24-metric-depth-model-zoo
+- **本地目标路径**：`weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth` (~465 MB)
+- **官方仓库**：https://github.com/DepthAnything/Depth-Anything-V2
+
+> ⚠️ **URL 需自行确认**：DA-V2 权重通过官方 GitHub 的 README/release 页面分发，
+> 实际下载链接请以 https://github.com/DepthAnything/Depth-Anything-V2#24-metric-depth-model-zoo
+> 为准。下方 HF 链接为**推测**，可能不存在或文件名不同：
 
 ```bash
 mkdir -p weights/depth-anything-v2
-# 从官方 release 下载 metric vkitti vitb 权重
+# 请先打开官方 GitHub README 确认正确的下载链接，例如：
 wget -O weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth \
-  https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hybrid-Base/resolve/main/depth_anything_v2_metric_vkitti_vitb.pth
+  <官方 README 中给出的 metric vkitti vitb 下载链接>
 ```
 
 配置见 `configs/model/depth/depth_anything_v2.yaml`。
@@ -176,6 +230,9 @@ python -m datasets.preprocess_realestate10k -d data/RealEstate10K -s test
 
 ### 3b. RE10K HF 测试集（CPU 调试/快速验证可选）
 
+> ⚠️ **第三方数据集**：`Hualingchu/RealEstate10K_test` 是非官方第三方上传，
+> 视频版权归 YouTube 原创作者。仅建议学术研究验证使用。
+
 若只需少量数据做 CPU 调试，可用 HF 上的 `.torch` 测试集：
 
 ```bash
@@ -229,15 +286,20 @@ FileNotFoundError: Depth Anything V1 source is missing at third_party/Depth-Anyt
 
 ## 5. Real-ESRGAN 超分权重（超分脚本可选）
 
-用于 `realesrgan_upscale.py` / `sr_postprocess.py` 等超分后处理脚本。
+- **本地目标路径**：`weights/realesrgan/RealESRGAN_x4.pth` (~64 MB)
+- **许可证**：BSD 3-Clause（可商用）
+- **官方仓库**：https://github.com/xinntao/Real-ESRGAN
 
-- **目标路径**：`weights/realesrgan/RealESRGAN_x4.pth` (~64 MB)
-- **来源**：GitHub `xinntao/Real-ESRGAN` releases
+> ⚠️ **版本需自行确认**：下方链接中的 release tag `v0.1.0` 和文件名
+> `RealESRGAN_x4plus.pth` 为参考值，请以
+> https://github.com/xinntao/Real-ESRGAN/releases 的实际 release 为准。
 
 ```bash
 mkdir -p weights/realesrgan
+# 请先确认官方 releases 页面的正确版本和文件名
 wget -O weights/realesrgan/RealESRGAN_x4.pth \
   https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+# 下载后重命名为代码期望的 RealESRGAN_x4.pth（或见下方别名列表）
 ```
 
 > 代码 `sr_postprocess.py` 会依次查找以下文件名（任一即可）：
@@ -265,6 +327,11 @@ export TORCH_HOME=weights/torch_hub_cache
 ---
 
 ## 7. 预训练视频数据集（自定义预训练，可选）
+
+> 🚨 **合规警告：爬取脚本使用 curl_cffi 绕过 Cloudflare 反爬虫机制。
+> 虽然视频内容本身可免费使用，但绕过反爬批量下载可能违反网站服务条款。
+> 仅建议个人学术研究使用，商业用途请咨询法律意见并优先使用官方 API。**
+> 详见顶部「合规与许可证声明」。
 
 `pretrain_dataset/` 存放自采集的航拍/户外视频（mp4），用于自定义预训练。
 本机约有 307 个 mp4，总计 ~4.3 GB。**这些不是官方数据，按需自行采集。**
@@ -312,22 +379,27 @@ mkdir -p third_party && cd third_party
 cd ..
 
 echo "=== [4/6] UniDepth V1 权重 ==="
+echo "  ⚠️ 请打开 https://github.com/Miyanishi/UniDepth 按 README 下载"
+echo "  目标路径: weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin"
+echo "  许可证: CC BY-NC 4.0 (禁止商用)"
 mkdir -p weights/unidepth-v1-cnvnxtl
-[ -f weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin ] || \
-  wget -O weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin \
-  https://huggingface.co/Miyanishi/UniDepth/resolve/main/checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin
+# 参考命令（路径以官方 README 为准）：
+# python -c "from huggingface_hub import hf_hub_download; \
+#   hf_hub_download('Miyanishi/UniDepth', \
+#   'checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin', \
+#   local_dir='weights/unidepth-v1-cnvnxtl')"
 
 echo "=== [5/6] Depth Anything V2 权重 ==="
+echo "  ⚠️ 请打开 https://github.com/DepthAnything/Depth-Anything-V2#24-metric-depth-model-zoo 确认链接"
+echo "  目标路径: weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth"
 mkdir -p weights/depth-anything-v2
-[ -f weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth ] || \
-  wget -O weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth \
-  https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hybrid-Base/resolve/main/depth_anything_v2_metric_vkitti_vitb.pth
+# wget -O weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth <官方链接>
 
 echo "=== [6/6] Real-ESRGAN 权重 ==="
+echo "  ⚠️ 请打开 https://github.com/xinntao/Real-ESRGAN/releases 确认版本"
+echo "  目标路径: weights/realesrgan/RealESRGAN_x4.pth"
 mkdir -p weights/realesrgan
-[ -f weights/realesrgan/RealESRGAN_x4.pth ] || \
-  wget -O weights/realesrgan/RealESRGAN_x4.pth \
-  https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+# wget -O weights/realesrgan/RealESRGAN_x4.pth <官方 release 链接>
 
 echo "=== RE10K 数据集（完整，耗时数天） ==="
 echo "参见 DOWNLOAD_GUIDE.md 第 3a 节手动执行"
