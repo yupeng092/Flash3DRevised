@@ -1,0 +1,34 @@
+# Depth Anything V1 (official relative depth) is the NPU pre-training default.
+# V1 is materially smaller than UniDepth V1 ViT-L while retaining useful geometry
+# for a feed-forward prior.  V1 outputs per-image normalised *relative* depth;
+# Flash3D recovers the absolute metric scale via ``dataset.scale_pose_by_depth``
+# + ``misc.depth.estimate_depth_scale`` against the sparse COLMAP point cloud, so
+# a relative prior is sufficient for single-image feed-forward training.
+#
+# Place the official V1 checkpoint (a full state dict that includes the
+# DINOv2 backbone) at the path below.  The path interpolates ``encoder`` so
+# switching encoder picks the matching file automatically:
+#   vits -> depth_anything_vits14.pth  (~96 MB,  24.8M params)
+#   vitb -> depth_anything_vitb14.pth  (~371 MB, 97.5M params)
+#   vitl -> depth_anything_vitl14.pth  (~1.28 GB, 335M params)
+# ``source_dir`` is intentionally local/offline.  OmegaConf node interpolations
+# resolve from the config root, so the full ``model.depth.encoder`` path is used.
+name: depth_anything_v1
+encoder: vitb
+readout: ignore
+source_dir: third_party/Depth-Anything
+checkpoint: weights/depth-anything/depth_anything_${model.depth.encoder}14.pth
+input_size: 518
+min_depth: 1.0e-4
+# V1 relative depth is ~[0, 1]; divide by 1.0 so the depth-conditioning channel
+# stays in the same range as the RGB channels (V2 metric uses 20.0).
+depth_normalizer: 1.0
+# Apply the official V1 per-image min-max normalisation.  Set False only if a
+# metric V1 fine-tune checkpoint is supplied.
+relative: true
+freeze: true
+finetune_lr: 1.0e-5
+# ``provided`` uses K_src from RE10K/KITTI datasets.  ``learned`` activates the
+# small camera head for datasets/inference without calibrated intrinsics.
+intrinsics_source: provided
+initial_focal_ratio: 0.9

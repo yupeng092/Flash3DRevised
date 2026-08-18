@@ -1,0 +1,52 @@
+# @package _global_
+# Conservative first-stage Ascend 910B pre-training profile.  The renderer is
+# differentiable but intentionally tile-capped; increase the limits only after
+# confirming peak memory and loss stability on the target NPU.
+#
+# Encoder default is Depth Anything V1 (official relative depth).  V1 outputs
+# per-image normalised relative depth; absolute scale is recovered by
+# ``train.scale_pose_by_depth`` + ``estimate_depth_scale`` against sparse COLMAP,
+# so ``scale_pose_by_depth`` must stay true.  To fall back to the V2 metric
+# prior, override with ``+experiment=layered_re10k_depth_anything_v2`` (or set
+# ``model.name=depth_anything_v2`` and ``model/depth=depth_anything_v2``).
+config:
+  exp_name: layered_re10k_npu
+
+defaults:
+  - override /dataset: re10k
+  - override /model: gaussian
+  - override /model/depth: depth_anything_v1
+  - override /loss: [regularization, reconstruction]
+
+data_loader:
+  batch_size: 1
+  num_workers: 8
+
+train:
+  accelerator: npu
+  num_gpus: 1
+  mixed_precision: 16-mixed
+  scale_pose_by_depth: true
+  use_gt_poses: true
+
+model:
+  name: depth_anything_v1
+  gauss_novel_frames: [-1, 1, 2]
+  renderer_w_pose: true
+  renderer_backend: npu_torch
+  npu_renderer_tile_size: 16
+  npu_renderer_tile_span: 5
+  npu_renderer_max_radius: 32.0
+  npu_renderer_max_gaussians_per_tile: 128
+  npu_renderer_max_gaussians: 65536
+  npu_renderer_sigma_cutoff: 3.0
+  npu_renderer_min_variance: 0.30
+  scale_with_depth: false
+  opacity_scale: 1.0
+  depth_scale: 0.1
+  xyz_scale: 0.2
+  max_depth: 20
+  depth_cond: true
+  depth:
+    encoder: vitb       # ViT-B frozen depth prior (~97.5M params, ~371MB checkpoint)
+    freeze: true        # freeze the DA encoder during NPU pretraining

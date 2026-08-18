@@ -1,0 +1,51 @@
+# @package _global_
+# Ascend 910B single-card pre-training with Depth Anything V1 ViT-S (frozen).
+#
+# ViT-S is the smallest official V1 backbone (~24.8M params, ~96MB checkpoint).
+# It trades a little depth-prior quality for lower NPU latency and memory, which
+# is useful when peak memory on the vitb profile is too high.  The encoder is
+# frozen: only the ResNet backbone + Gaussian decoders are optimised, and depth
+# inference runs under ``torch.no_grad()``.  Absolute scale is still recovered
+# via ``train.scale_pose_by_depth`` + ``estimate_depth_scale`` against sparse
+# COLMAP, so ``scale_pose_by_depth`` must stay true.
+config:
+  exp_name: layered_re10k_npu_vits
+
+defaults:
+  - override /dataset: re10k
+  - override /model: gaussian
+  - override /model/depth: depth_anything_v1
+  - override /loss: [regularization, reconstruction]
+
+data_loader:
+  batch_size: 1
+  num_workers: 8
+
+train:
+  accelerator: npu
+  num_gpus: 1
+  mixed_precision: 16-mixed
+  scale_pose_by_depth: true
+  use_gt_poses: true
+
+model:
+  name: depth_anything_v1
+  gauss_novel_frames: [-1, 1, 2]
+  renderer_w_pose: true
+  renderer_backend: npu_torch
+  npu_renderer_tile_size: 16
+  npu_renderer_tile_span: 5
+  npu_renderer_max_radius: 32.0
+  npu_renderer_max_gaussians_per_tile: 128
+  npu_renderer_max_gaussians: 65536
+  npu_renderer_sigma_cutoff: 3.0
+  npu_renderer_min_variance: 0.30
+  scale_with_depth: false
+  opacity_scale: 1.0
+  depth_scale: 0.1
+  xyz_scale: 0.2
+  max_depth: 20
+  depth_cond: true
+  depth:
+    encoder: vits       # ViT-S frozen depth prior (~24.8M params, ~96MB checkpoint)
+    freeze: true        # freeze the DA encoder during NPU pretraining

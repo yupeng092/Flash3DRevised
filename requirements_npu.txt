@@ -1,0 +1,181 @@
+###############################################################################
+# Flash3D NPU 预训练环境依赖 (华为 Ascend 910B / Linux)
+###############################################################################
+#
+# 本文件列出在 Ascend 910B NPU 上运行 Flash3D 预训练所需的全部软件环境。
+# 安装顺序:先装系统级依赖(CANN/torch_npu),再创建 Python 环境,最后 pip install。
+#
+# ⚠️ 不要同时安装 requirements.txt —— 它包含 CUDA 专用扩展
+#    (xformers / triton / diff-gaussian-rasterization),无法在 NPU 上运行。
+#    NPU 路径使用纯 PyTorch 可微渲染器 (models/decoder/npu_differentiable_renderer.py)
+#    替代 CUDA 光栅化器。
+#
+###############################################################################
+# 第 0 层:系统级前提 (无法用 pip 安装,必须手动配置)
+###############################################################################
+#
+# 1. 操作系统:Linux x86_64 或 aarch64 (Ubuntu 22.04 / CentOS 7.6+ / openEuler)
+#
+# 2. Ascend 910B 驱动 + 固件 + CANN toolkit 9.0.0
+#    下载地址:https://www.hiascend.com/ (需注册)
+#    安装后每次开 shell 都要初始化 CANN 环境:
+#      source /usr/local/Ascend/ascend-toolkit/set_env.sh
+#    (实际安装路径可能不同,以你的 CANN 安装位置为准)
+#
+# 3. torch_npu wheel (必须与 CANN 版本 + CPU 架构匹配)
+#    从官方 Ascend release 页面下载,不要从 PyPI 盲装:
+#      https://gitee.com/ascend/pytorch/releases
+#    选择与 CANN 9.0.0 + Python 3.10/3.11 + x86_64/aarch64 匹配的 wheel。
+#
+# 4. ffmpeg (仅 RE10K 数据下载需要,预训练本身不需要)
+#    RE10K 从 YouTube 抽帧依赖 ffmpeg:
+#      sudo apt install ffmpeg        # Ubuntu
+#
+# 5. gcc/g++ >= 7.5 (部分包编译需要)
+#
+###############################################################################
+# 第 1 层:Python 环境 + PyTorch + torch_npu
+###############################################################################
+#
+# 官方兼容矩阵 (Ascend compatibility):
+#   CANN 9.0.0 + Python 3.10/3.11 + PyTorch 2.7.1 + torch_npu 2.7.1.post4
+#
+# 创建环境 (推荐 conda):
+#   conda create -n flash3d-npu python=3.10 -y
+#   conda activate flash3d-npu
+#
+# 安装 PyTorch + torch_npu (顺序:先 torch,再 torch_npu):
+#   pip install torch==2.7.1 torchvision==0.22.1
+#   pip install torch_npu==2.7.1.post4 \
+#       --index-url https://pypi.org/simple/ \
+#       # 或用从 gitee 下载的本地 wheel:
+#       # pip install ./torch_npu-2.7.1.post4-cp310-cp310-linux_x86_64.whl
+#
+# 验证 torch_npu 安装:
+#   python -c "import torch; import torch_npu; print(torch.npu.is_available())"
+#   # 应输出 True
+
+torch==2.7.1
+torchvision==0.22.1
+torch_npu==2.7.1.post4
+
+###############################################################################
+# 第 2 层:Flash3D 训练核心依赖 (pip 可装)
+###############################################################################
+
+# --- 配置与实验管理 ---
+hydra-core               # Hydra 配置框架 (train.py / evaluate.py 入口)
+omegaconf                # Hydra 底层配置容器 (${model.depth.encoder} 插值)
+hydra-submitit-launcher  # Hydra SLURM submitit 启动器 (多卡/集群用,单卡可选)
+submitit                 # submitit 作业提交库
+
+# --- 训练框架 ---
+lightning                # Lightning Fabric (DDP/精度/设备管理)
+ema-pytorch              # EMA 指数移动平均 (模型权重平滑)
+
+# --- 深度学习工具 ---
+timm                     # timm 模型库 (ResNet 主干 + 部分工具)
+einops                   # 张量重排 (rearrange, 全项目广泛使用)
+jaxtyping                # 类型注解 (部分模块)
+
+# --- 数据与图像 ---
+numpy==1.26.4            # 数值计算 (锁定版本避免 ABI 不一致)
+Pillow>=10.0             # 图像 IO (RE10K/KITTI 加载)
+opencv-python-headless   # 图像处理 (无 GUI 依赖,适合服务器)
+scikit-image             # 图像质量指标辅助
+scipy                    # 科学计算 (RANSAC 尺度估计)
+imageio                  # 图像/视频读写
+
+# --- 评估指标 ---
+torchmetrics             # PSNR / SSIM / LPIPS 指标 (Evaluator)
+
+# --- 数据集下载 (RE10K) ---
+pytubefix                # YouTube 视频下载 (RE10K 数据获取,需配合 ffmpeg)
+huggingface-hub>=0.22.0  # HF 模型/权重下载 (DA V1 权重 + DINOv2 源码)
+requests                 # HTTP 下载 (download_depth_anything_v1.py 直接流式下载)
+
+# --- 可视化与日志 ---
+matplotlib               # 图表绘制 (evaluate.py 可视化)
+plyfile                  # PLY 点云导出 (benchmark/可视化)
+tqdm                     # 进度条
+
+# --- 系统与工具 ---
+psutil                   # 内存/CPU 监控 (benchmark_cpu.py / profile_npu_pretrain.py)
+PyYAML                   # YAML 解析
+ninja                    # 构建系统 (部分包编译加速)
+GitPython                # git 操作 (实验记录 git hash)
+packaging                # 版本号比较 (datasets/util.py 检查 torch 版本)
+safetensors               # 安全张量序列化
+
+###############################################################################
+# 第 3 层:可选依赖 (按需启用)
+###############################################################################
+
+# --- 实验跟踪 (二选一,默认都不用,train.logging=false 即可) ---
+# wandb                   # Weights & Biases 日志
+# neptune                 # Neptune.ai 日志 (Flash3D 原版默认用这个)
+
+###############################################################################
+# 第 4 层:Depth Anything V1 编码器依赖 (非 pip,需手动获取)
+###############################################################################
+#
+# DA V1 的源码和权重不在 PyPI,需从 HuggingFace 获取:
+#
+# 源码 (DA V1 DPT 模型定义 + DINOv2 主干源码):
+#   python scripts/download_depth_anything_v1.py --probe-only
+#   # 或手动用 huggingface_hub snapshot_download 从 LiheYoung/Depth-Anything space 拉取:
+#   #   depth_anything/               (dpt.py, blocks.py, util/transform.py)
+#   #   torchhub/facebookresearch_dinov2_main/  (DINOv2 主干,hubconf.py)
+#   放到 third_party/Depth-Anything/
+#
+# 权重 (含 DINOv2 主干的完整 state dict):
+#   python scripts/download_depth_anything_v1.py --encoders vits vitb
+#   # vits: depth_anything_vits14.pth  (~96 MB,  24.8M 参数)
+#   # vitb: depth_anything_vitb14.pth  (~371 MB, 97.5M 参数)
+#   放到 weights/depth-anything/
+#
+# 若 huggingface.co 直连不通,脚本自动切换 hf-mirror.com 镜像:
+#   export HF_ENDPOINT=https://hf-mirror.com
+
+###############################################################################
+# 第 5 层:明确排除的包 (NPU 不兼容)
+###############################################################################
+#
+# 以下包是 CUDA 专用,绝不能在 NPU 环境安装:
+#
+#   xformers              # CUDA memory-efficient attention;NPU 用原生 PyTorch attention
+#                         # (depth_anything_v1_encoder.py 会自动禁用 XFORMERS_AVAILABLE)
+#   triton                # CUDA 编译器后端
+#   diff-gaussian-rasterization  # CUDA 3DGS 光栅化器;NPU 用 npu_differentiable_renderer.py
+#
+# Flash3D 的 CUDA 光栅化器已由纯 PyTorch 实现的 Ascend 原生可微高斯渲染器替代,
+# 位于 models/decoder/npu_differentiable_renderer.py,通过 renderer_backend=npu_torch 启用。
+#
+###############################################################################
+# 安装总结 (复制即用)
+###############################################################################
+#
+# # 1. 系统级 (按上面第 0 层说明装 CANN + torch_npu wheel)
+# source /usr/local/Ascend/ascend-toolkit/set_env.sh
+#
+# # 2. Python 环境
+# conda create -n flash3d-npu python=3.10 -y
+# conda activate flash3d-npu
+#
+# # 3. PyTorch + torch_npu
+# pip install torch==2.7.1 torchvision==0.22.1
+# pip install torch_npu==2.7.1.post4
+#
+# # 4. Flash3D 依赖
+# pip install -r requirements_npu.txt
+# #    (本文件第 2/3 层的包;torch/torchvision/torch_npu 已在第 3 步装好,
+# #     重复声明无妨,pip 会跳过已满足的版本)
+#
+# # 5. DA V1 源码 + 权重
+# python scripts/download_depth_anything_v1.py --encoders vits vitb
+#
+# # 6. 验证
+# python scripts/check_npu_env.py        # NPU 环境自检
+# python scripts/test_npu_renderer.py    # 渲染器 CPU/NPU 一致性
+#
+###############################################################################
