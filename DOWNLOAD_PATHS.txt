@@ -1,0 +1,181 @@
+================================================================================
+ Flash3D 数据集与权重下载速查 (服务器用)
+ 仓库: https://github.com/yupeng092/Flash3DRevised
+ 详细说明见 DOWNLOAD_GUIDE.md，本文件仅保留可直接执行的命令。
+================================================================================
+
+所有命令在仓库根目录下执行。路径以仓库根目录为基准。
+国内服务器设镜像:  export HF_ENDPOINT=https://hf-mirror.com
+
+
+================================================================================
+ [1] Flash3D 预训练模型 (评估/推理必需, ~658 MB)
+================================================================================
+目标: exp/re10k_v2/checkpoints/model_re10k_v2.pth
+来源: HuggingFace einsafutdinov/flash3d
+
+python -m misc.download_pretrained_models -o exp/re10k_v2
+
+
+================================================================================
+ [2] UniDepth V1 权重 (unidepth 配置必需, ~1.32 GB)
+================================================================================
+目标: weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin
+来源: HuggingFace Miyanishi/UniDepth
+
+mkdir -p weights/unidepth-v1-cnvnxtl
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download('Miyanishi/UniDepth','checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin',local_dir='weights/unidepth-v1-cnvnxtl')"
+
+# 或直接 wget:
+wget -O weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin \
+  https://huggingface.co/Miyanishi/UniDepth/resolve/main/checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin
+
+
+================================================================================
+ [3] Depth Anything V1 权重 (DA-V1 配置必需)
+================================================================================
+目标: weights/depth-anything/depth_anything_vit{b,s,l}14.pth
+来源: HuggingFace LiheYoung/Depth-Anything
+大小: vits ~96MB / vitb ~372MB / vitl ~1280MB
+
+python scripts/download_depth_anything_v1.py                      # 默认 vitb
+python scripts/download_depth_anything_v1.py --encoders vits vitb  # 多个
+
+
+================================================================================
+ [4] Depth Anything V2 权重 (DA-V2 配置必需, ~465 MB)
+================================================================================
+目标: weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth
+来源: HuggingFace depth-anything/Depth-Anything-V2-Metric-Hybrid-Base
+
+mkdir -p weights/depth-anything-v2
+wget -O weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth \
+  https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hybrid-Base/resolve/main/depth_anything_v2_metric_vkitti_vitb.pth
+
+
+================================================================================
+ [5] Real-ESRGAN 超分权重 (超分脚本可选, ~64 MB)
+================================================================================
+目标: weights/realesrgan/RealESRGAN_x4.pth
+来源: GitHub xinntao/Real-ESRGAN releases
+
+mkdir -p weights/realesrgan
+wget -O weights/realesrgan/RealESRGAN_x4.pth \
+  https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+
+
+================================================================================
+ [6] VGG16 (torch hub, 感知损失可选, ~528 MB)
+================================================================================
+目标: weights/torch_hub_cache/hub/checkpoints/vgg16-397923af.pth
+来源: pytorch.org (torchvision 自动下载, 无网络时手动放置)
+
+mkdir -p weights/torch_hub_cache/hub/checkpoints
+wget -O weights/torch_hub_cache/hub/checkpoints/vgg16-397923af.pth \
+  https://download.pytorch.org/models/vgg16-397923af.pth
+export TORCH_HOME=weights/torch_hub_cache
+
+
+================================================================================
+ [7] 第三方模型源码 (third_party/)
+================================================================================
+被 .gitignore 排除, 需手动 clone。
+
+mkdir -p third_party
+cd third_party
+
+git clone https://github.com/LiheYoung/Depth-Anything.git Depth-Anything
+git clone https://github.com/DepthAnything/Depth-Anything-V2.git Depth-Anything-V2
+git clone https://github.com/Miyanishi/UniDepth.git unidepth_offline
+
+cd ..
+
+
+================================================================================
+ [8] RealEstate10K 完整数据集 (训练必需, 耗时数天)
+================================================================================
+
+# 8a. 下载相机位姿元数据 (从下方网页手动下载 test.txt / train.txt)
+#     https://google.github.io/realestate10k/download.html
+#     解压到 data/RealEstate10K/train/*.txt 和 data/RealEstate10K/test/*.txt
+
+# 8b. 下载 YouTube 视频并抽帧 (需 ffmpeg + pytubefix)
+python datasets/download_realestate10k.py -d data/RealEstate10K -o data/RealEstate10K -m train
+python datasets/download_realestate10k.py -d data/RealEstate10K -o data/RealEstate10K -m test
+
+# 8c. 下载 COLMAP 稀疏点云缓存 (从 thor.robots.ox.ac.uk)
+sh datasets/download_realestate10k_colmap.sh
+
+# 8d. 预处理过滤
+python -m datasets.preprocess_realestate10k -d data/RealEstate10K -s train
+python -m datasets.preprocess_realestate10k -d data/RealEstate10K -s test
+
+
+================================================================================
+ [9] RealEstate10K HF 测试集 (CPU 调试可选, ~1 GB)
+================================================================================
+快速获取少量数据, 适合 CPU 验证, 不能替代完整数据集。
+来源: HuggingFace Hualingchu/RealEstate10K_test
+
+python scripts/convert_hf_re10k.py
+
+
+================================================================================
+ [10] 预训练视频数据集 (自定义预训练可选)
+================================================================================
+自采集航拍/户外视频, 非官方数据。依赖 curl_cffi + requests。
+
+python download_pexels.py          # Pexels 搜索+下载
+python download_pexels_full.py     # 更大规模
+python download_mixkit.py          # Mixkit 来源
+
+
+================================================================================
+ [11] 环境依赖安装
+================================================================================
+conda create -y python=3.10 -n flash3d
+conda activate flash3d
+pip install -r requirements-torch.txt --extra-index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt
+
+
+================================================================================
+ [12] 只做推理评估的最小下载集
+================================================================================
+1. Flash3D 预训练模型:    python -m misc.download_pretrained_models -o exp/re10k_v2
+2. UniDepth 权重+源码:    见 [2] 和 [7]
+3. RE10K 测试数据:        见 [8] (完整) 或 [9] (HF 快速验证)
+
+================================================================================
+ 一键脚本: 将 [1]-[7] 保存为 setup_data.sh 直接执行
+================================================================================
+#!/bin/bash
+set -e
+export HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
+
+python -m misc.download_pretrained_models -o exp/re10k_v2
+python scripts/download_depth_anything_v1.py
+
+mkdir -p third_party && cd third_party
+git clone https://github.com/LiheYoung/Depth-Anything.git Depth-Anything
+git clone https://github.com/DepthAnything/Depth-Anything-V2.git Depth-Anything-V2
+git clone https://github.com/Miyanishi/UniDepth.git unidepth_offline
+cd ..
+
+mkdir -p weights/unidepth-v1-cnvnxtl
+wget -O weights/unidepth-v1-cnvnxtl/unidepth_v1_vitl14.bin \
+  https://huggingface.co/Miyanishi/UniDepth/resolve/main/checkpoints/unidepth_v1_cnvnxtl/unidepth_v1_vitl14.bin
+
+mkdir -p weights/depth-anything-v2
+wget -O weights/depth-anything-v2/depth_anything_v2_metric_vkitti_vitb.pth \
+  https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hybrid-Base/resolve/main/depth_anything_v2_metric_vkitti_vitb.pth
+
+mkdir -p weights/realesrgan
+wget -O weights/realesrgan/RealESRGAN_x4.pth \
+  https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+
+echo "完成。RE10K 数据集见 DOWNLOAD_GUIDE.md 第 3 节手动执行。"
+
+================================================================================
+ END
+================================================================================
