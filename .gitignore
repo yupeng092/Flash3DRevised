@@ -182,3 +182,6 @@ third_party/
 # Pretraining video dataset — large media files fetched separately, not source code.
 pretrain_dataset/
 *.mp4
+
+# Local SSH key material used only to push to GitHub — never commit.
+.gh_ssh/
